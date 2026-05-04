@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { QuickBookingCard } from "@/components/QuickBookingCard";
 
 export function ContactSection() {
   return (
@@ -17,8 +18,9 @@ export function ContactSection() {
           </div>
 
           <div className="contact-details">
-            <div className="contact-box">
-              <h3>预约与联系</h3>
+            <QuickBookingCard />
+
+            <div className="contact-box location-box">
               <div className="contact-list">
                 <div className="contact-item">
                   <div className="contact-icon">📞</div>
@@ -42,9 +44,6 @@ export function ContactSection() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="contact-box location-box">
               <h3>到店位置</h3>
               <div className="location-map">
                 <Image
