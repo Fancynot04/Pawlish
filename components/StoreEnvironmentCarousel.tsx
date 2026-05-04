@@ -51,19 +51,52 @@ const slides = [
 
 export function StoreEnvironmentCarousel() {
   const [index, setIndex] = useState(0);
-  const pausedRef = useRef(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [isPageHidden, setIsPageHidden] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const pointerStartXRef = useRef<number | null>(null);
+  const isPaused = prefersReducedMotion || isHovered || isFocused || isPageHidden;
 
   useEffect(() => {
-    const timerId = window.setInterval(() => {
-      if (!pausedRef.current) {
-        setIndex((prev) => (prev + 1) % slides.length);
-      }
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncPreference = () => {
+      setPrefersReducedMotion(mediaQuery.matches);
+    };
+
+    syncPreference();
+    mediaQuery.addEventListener("change", syncPreference);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncPreference);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPageHidden(document.hidden);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setIndex((prev) => (prev + 1) % slides.length);
     }, 4200);
 
     return () => {
-      window.clearInterval(timerId);
+      window.clearTimeout(timerId);
     };
-  }, []);
+  }, [index, isPaused]);
 
   return (
     <section className="section" id="space">
@@ -77,16 +110,49 @@ export function StoreEnvironmentCarousel() {
           <div
             className="space-carousel"
             data-carousel="space"
-            onMouseEnter={() => {
-              pausedRef.current = true;
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            onPointerDown={(event) => {
+              pointerStartXRef.current = event.clientX;
             }}
-            onMouseLeave={() => {
-              pausedRef.current = false;
+            onPointerUp={(event) => {
+              if (pointerStartXRef.current === null) {
+                return;
+              }
+
+              const deltaX = event.clientX - pointerStartXRef.current;
+              pointerStartXRef.current = null;
+
+              if (Math.abs(deltaX) < 48) {
+                return;
+              }
+
+              if (deltaX > 0) {
+                setIndex((prev) => (prev - 1 + slides.length) % slides.length);
+                return;
+              }
+
+              setIndex((prev) => (prev + 1) % slides.length);
+            }}
+            onPointerCancel={() => {
+              pointerStartXRef.current = null;
             }}
           >
-            <div className="space-track" style={{ transform: `translateX(-${index * 100}%)` }}>
-              {slides.map((slide) => (
-                <article className="space-slide" key={slide.theme}>
+            <div className="space-status" aria-live="polite">
+              <span>门店导览</span>
+              <strong>
+                {String(index + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
+              </strong>
+            </div>
+            <div className="space-track" style={{ transform: `translate3d(-${index * 100}%, 0, 0)` }}>
+              {slides.map((slide, slideIndex) => (
+                <article
+                  className="space-slide"
+                  key={slide.theme}
+                  aria-hidden={slideIndex !== index}
+                >
                   <div
                     className="space-media"
                     data-theme={slide.theme}
@@ -132,6 +198,7 @@ export function StoreEnvironmentCarousel() {
                 type="button"
                 data-slide={slideIndex}
                 aria-label={`查看${slide.label}`}
+                aria-pressed={slideIndex === index}
                 key={slide.theme}
                 onClick={() => setIndex(slideIndex)}
               />
